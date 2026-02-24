@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Muzyczny</title>
+</head>
+<body>
+    <h1>Music Quiz</h1>
+    
+    <button id="loginBtn">Zaloguj do Spotify</button>
+
+    <div id="setupUI" style="display: none;">
+        <h2>Przygotowanie gry</h2>
+        <input type="text" id="playlistInput" placeholder="Wklej link do playlisty Spotify..." style="width: 300px;">
+        <button id="loadPlaylistBtn">Wczytaj playlistę</button>
+    </div>
+    
+    <div id="gameUI" style="display: none;">
+        <h2 id="secretDisplay">*** - ***</h2>
+
+        <div>
+            <input type="text" id="guessInput" placeholder="Wpisz artystę i/lub tytuł..." style="width: 300px;">
+            <button id="submitGuessBtn">Zgadnij</button>
+        </div>
+        <br>
+
+        <button id="playBtn" disabled>Graj fragment</button>
+        <button id="nextRoundBtn" disabled>Nie wiem (następna runda)</button>
+        <p>Aktualny czas: <span id="timeDisplay">1</span>s</p>
+        <p>Piosenka: <span id="trackCounterDisplay">0/0</span></p>
+    </div>
+
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
