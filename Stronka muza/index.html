@@ -2,35 +2,122 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Quiz Muzyczny</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizski</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Music Quiz</h1>
-    
-    <button id="loginBtn">Zaloguj do Spotify</button>
 
-    <div id="setupUI" style="display: none;">
-        <h2>Przygotowanie gry</h2>
-        <input type="text" id="playlistInput" placeholder="Wklej link do playlisty Spotify..." style="width: 300px;">
-        <button id="loadPlaylistBtn">Wczytaj playlistę</button>
-    </div>
-    
-    <div id="gameUI" style="display: none;">
-        <h2 id="secretDisplay">*** - ***</h2>
-
-        <div>
-            <input type="text" id="guessInput" placeholder="Wpisz artystę i/lub tytuł..." style="width: 300px;">
-            <button id="submitGuessBtn">Zgadnij</button>
+    <!-- Menu -->
+    <div id="menuWrap">
+        <button id="menuBtn" class="menu-trigger">Q</button>
+        <div id="menuDropdown" class="dropdown hidden">
+            <button id="menuTrybOG">♫ Tryb OG</button>
+            <button id="menuTrybItunes">⟳ Tryb iTunes (beta)</button>
+            <button id="menuLogout">⏏ Wyloguj Spotify</button>
         </div>
-        <br>
+    </div>
 
-        <button id="playBtn" disabled>Graj fragment</button>
-        <button id="nextRoundBtn" disabled>Nie wiem (następna runda)</button>
-        <p>Aktualny czas: <span id="timeDisplay">1</span>s</p>
-        <p>Piosenka: <span id="trackCounterDisplay">0/0</span></p>
+    <!-- Historia -->
+    <div id="historyList"></div>
+
+    <!-- ─── MAIN ─────────────────────────────────────── -->
+    <div id="app-wrapper">
+
+        <h1>Quizski</h1>
+
+        <div class="waveform">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+        </div>
+
+        <!-- ── EKRAN WYBORU TRYBU ── -->
+        <div id="landingUI" class="card">
+            <h2>Wybierz tryb</h2>
+            <div class="controls-row">
+                <button id="landingOGBtn">♫ Tryb OG</button>
+                <button id="landingItunesBtn" class="btn-red">⟳ iTunes Beta</button>
+            </div>
+        </div>
+
+        <!-- ── TRYB OG ── -->
+        <button id="loginBtn" style="display:none;">Zaloguj do Spotify</button>
+
+        <div id="setupUI" class="card" style="display: none;">
+            <h2>Tryb OG</h2>
+            <div class="input-row">
+                <input type="text" id="playlistInput" placeholder="Wklej link do playlisty Spotify...">
+                <button id="loadPlaylistBtn">Wczytaj</button>
+            </div>
+        </div>
+
+        <!-- ── TRYB ITUNES SETUP ── -->
+        <div id="itunesSetupUI" class="card" style="display: none;">
+            <h2>Tryb iTunes Beta</h2>
+            <div class="input-row">
+                <input type="text" id="itunesQuery" placeholder="Artysta lub gatunek (np. Taylor Swift, pop)...">
+            </div>
+            <div class="input-row itunes-count-row">
+                <label for="itunesCount">Liczba utworów:</label>
+                <input type="number" id="itunesCount" min="1" max="50" value="10">
+                <button id="itunesLoadBtn">Szukaj i graj</button>
+            </div>
+        </div>
+
+        <!-- ── GAME UI (wspólny) ── -->
+        <div id="gameUI" class="card" style="display: none;">
+            <h2 id="secretDisplay">*** - ***</h2>
+
+            <div class="mode-toggle">
+                <span>Pokaż długość</span>
+                <label class="switch">
+                    <input type="checkbox" id="hideLengthToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Ukryj długość</span>
+            </div>
+
+            <div class="guess-row">
+                <input type="text" id="guessInput" placeholder="Wpisz artystę i/lub tytuł...">
+                <button id="submitGuessBtn">Zgadnij</button>
+            </div>
+
+            <div class="volume-row">
+                <span class="volume-icon">▼</span>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50">
+                <span class="volume-icon">▲</span>
+            </div>
+
+            <div class="controls-row">
+                <button id="playBtn" disabled>▶ Graj fragment</button>
+                <button id="nextRoundBtn" disabled>✕ Nie wiem</button>
+            </div>
+
+            <div class="time-progress-wrap">
+                <div class="time-progress-bar">
+                    <div class="time-progress-fill" id="timeProgressFill"></div>
+                </div>
+                <div class="time-labels">
+                    <span style="left: 10%">1s</span>
+                    <span style="left: 20%">2s</span>
+                    <span style="left: 30%">3s</span>
+                    <span style="left: 50%">5s</span>
+                    <span style="left: 100%">10s</span>
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <span>Czas: <span class="stat-value" id="timeDisplay">1</span>s</span>
+                <span>Piosenka: <span class="stat-value" id="trackCounterDisplay">0/0</span></span>
+            </div>
+        </div>
+
     </div>
 
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="itunes.js"></script>
     <script src="app.js"></script>
+
 </body>
 </html>
