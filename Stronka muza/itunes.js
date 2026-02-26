@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────────────────
-//  TRYB ITUNES BETA
-//  Wyszukuje utwory bezpośrednio w iTunes Search API
-//  Nie wymaga logowania do Spotify
-// ─────────────────────────────────────────────────────────
-
 const ItunesMode = (() => {
 
     let active = false;
@@ -14,17 +8,33 @@ const ItunesMode = (() => {
     let isTitleGuessed = false;
     let audioEl = null;
     let pauseTimer = null;
+    let searchMode = 'artist';
+    let selectedPlaylist = null;
 
     const playDurations = [1, 2, 3, 5, 10];
     const timeProgressPercents = [10, 20, 30, 50, 100];
 
-    // ── DOM ───────────────────────────────────────────────
+    const PLAYLISTS = [
+        { label: 'Top 50 Polska - Mix',      url: 'https://itunes.apple.com/pl/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 Polska - Hip-Hop',  url: 'https://itunes.apple.com/pl/rss/topsongs/limit=50/genre=18/json' },
+        { label: 'Top 50 Polska - Pop',      url: 'https://itunes.apple.com/pl/rss/topsongs/limit=50/genre=14/json' },
+        { label: 'Top 50 Polska - Rock',     url: 'https://itunes.apple.com/pl/rss/topsongs/limit=50/genre=21/json' },
+        { label: 'Top 50 Polska - Alt',      url: 'https://itunes.apple.com/pl/rss/topsongs/limit=50/genre=20/json' },
+        { label: 'Top 50 USA - Mix',         url: 'https://itunes.apple.com/us/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 USA - Hip-Hop',     url: 'https://itunes.apple.com/us/rss/topsongs/limit=50/genre=18/json' },
+        { label: 'Top 50 UK - Mix',          url: 'https://itunes.apple.com/gb/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 Niemcy - Mix',      url: 'https://itunes.apple.com/de/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 Francja - Mix',     url: 'https://itunes.apple.com/fr/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 Hiszpania - Mix',   url: 'https://itunes.apple.com/es/rss/topsongs/limit=50/json' },
+        { label: 'Top 50 Włochy - Mix',      url: 'https://itunes.apple.com/it/rss/topsongs/limit=50/json' },
+    ];
+
     const landingUI           = document.getElementById('landingUI');
     const itunesSetupUI       = document.getElementById('itunesSetupUI');
     const gameUI              = document.getElementById('gameUI');
     const setupUI             = document.getElementById('setupUI');
     const loginBtn            = document.getElementById('loginBtn');
-    const itunesQuery         = document.getElementById('itunesQuery');
+    const itunesArtistQuery   = document.getElementById('itunesArtistQuery');
     const itunesCount         = document.getElementById('itunesCount');
     const itunesLoadBtn       = document.getElementById('itunesLoadBtn');
     const secretDisplay       = document.getElementById('secretDisplay');
@@ -38,8 +48,12 @@ const ItunesMode = (() => {
     const hideLengthToggle    = document.getElementById('hideLengthToggle');
     const volumeSlider        = document.getElementById('volumeSlider');
     const historyList         = document.getElementById('historyList');
+    const tabArtist           = document.getElementById('tabArtist');
+    const tabGenre            = document.getElementById('tabGenre');
+    const artistPanel         = document.getElementById('artistPanel');
+    const genrePanel          = document.getElementById('genrePanel');
+    const genreChips          = document.getElementById('genreChips');
 
-    // ── Badge ─────────────────────────────────────────────
     function showBadge() {
         if (document.getElementById('itunesBadge')) return;
         const badge = document.createElement('div');
@@ -60,54 +74,151 @@ const ItunesMode = (() => {
         if (b) b.remove();
     }
 
-    // ── Szukaj w iTunes ───────────────────────────────────
-    async function searchItunes(query, limit) {
-        // iTunes Search API pozwala pobrać max 200 wyników
-        const fetchLimit = Math.min(limit * 4, 200); // weź więcej, przefiltruj te z preview
-        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=${fetchLimit}`;
+    function setupTabs() {
+        tabArtist.addEventListener('click', () => setMode('artist'));
+        tabGenre.addEventListener('click', () => setMode('playlist'));
+        tabGenre.textContent = 'Playlista'; 
+    }
+
+    function setMode(mode) {
+        searchMode = mode;
+        if (mode === 'artist') {
+            tabArtist.classList.add('active');
+            tabGenre.classList.remove('active');
+            artistPanel.style.display = 'block';
+            genrePanel.style.display = 'none';
+        } else {
+            tabGenre.classList.add('active');
+            tabArtist.classList.remove('active');
+            genrePanel.style.display = 'block';
+            artistPanel.style.display = 'none';
+        }
+    }
+
+    function buildPlaylistChips() {
+        genreChips.innerHTML = '';
+        PLAYLISTS.forEach(p => {
+            const chip = document.createElement('button');
+            chip.classList.add('genre-chip');
+            chip.textContent = p.label;
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                selectedPlaylist = p;
+            });
+            genreChips.appendChild(chip);
+        });
+    }
+
+    async function fetchPlaylistTracks(playlist, limit) {
+        try {
+            const rssRes = await fetch(playlist.url);
+            const rssData = await rssRes.json();
+            const entries = rssData.feed?.entry || [];
+
+            if (entries.length === 0) return [];
+
+            const trackIds = entries
+                .map(e => e.id?.attributes?.['im:id'])
+                .filter(Boolean)
+                .slice(0, 50);
+
+            const cCode = playlist.url.match(/\.com\/([a-z]{2})\//)[1] || 'us';
+            const lookupUrl = `https://itunes.apple.com/lookup?id=${trackIds.join(',')}&country=${cCode}&entity=song`;
+            
+            const lookupRes = await fetch(lookupUrl);
+            const lookupData = await lookupRes.json();
+
+            const withPreview = (lookupData.results || [])
+                .filter(r => r.previewUrl && r.kind === 'song' && r.trackName && r.artistName)
+                .map(r => ({ name: r.trackName, artist: r.artistName, previewUrl: r.previewUrl }));
+
+            shuffle(withPreview);
+            return withPreview.slice(0, limit);
+
+        } catch (e) {
+            return fetchByTerm(playlist.label, limit);
+        }
+    }
+
+    async function fetchArtistTracks(artistName, limit) {
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&media=music&entity=song&limit=200&attribute=artistTerm`;
         try {
             const res = await fetch(url);
             const data = await res.json();
-            const withPreview = (data.results || []).filter(r => r.previewUrl && r.trackName && r.artistName);
 
-            // Tasuj żeby nie zawsze te same piosenki
-            for (let i = withPreview.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [withPreview[i], withPreview[j]] = [withPreview[j], withPreview[i]];
-            }
+            const cleanStr = s => s.toLowerCase().replace(/[^\p{L}\d]/gu, '');
+            const target = cleanStr(artistName);
 
-            // Zwróć żądaną liczbę
-            return withPreview.slice(0, limit).map(r => ({
-                name: r.trackName,
-                artist: r.artistName,
-                previewUrl: r.previewUrl
-            }));
+            const filtered = (data.results || [])
+                .filter(r => {
+                    if (!r.previewUrl || !r.artistName || !r.trackName) return false;
+                    const artistsInTrack = r.artistName.toLowerCase().split(/,|\&|feat\.?/i).map(a => cleanStr(a));
+                    return artistsInTrack.includes(target);
+                })
+                .map(r => ({ name: r.trackName, artist: r.artistName, previewUrl: r.previewUrl }));
+
+            const seen = new Set();
+            const unique = filtered.filter(t => {
+                const key = t.name.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            shuffle(unique);
+            return unique.slice(0, limit);
+
         } catch (e) {
-            console.error('iTunes search error:', e);
             return [];
         }
     }
 
-    // ── Załaduj i zacznij ─────────────────────────────────
+    async function fetchByTerm(term, limit) {
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=200`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const withPreview = (data.results || [])
+                .filter(r => r.previewUrl && r.trackName && r.artistName)
+                .map(r => ({ name: r.trackName, artist: r.artistName, previewUrl: r.previewUrl }));
+            shuffle(withPreview);
+            return withPreview.slice(0, limit);
+        } catch { return []; }
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+
     async function loadAndStart() {
-        const query = itunesQuery.value.trim();
         const count = parseInt(itunesCount.value) || 10;
 
-        if (!query) { alert("Wpisz artystę lub gatunek."); return; }
+        if (searchMode === 'playlist' && !selectedPlaylist) {
+            alert("Wybierz playlistę z listy."); return;
+        }
+        if (searchMode === 'artist' && !itunesArtistQuery.value.trim()) {
+            alert("Wpisz nazwę artysty."); return;
+        }
 
         itunesLoadBtn.disabled = true;
-        itunesLoadBtn.textContent = 'Szukam...';
+        itunesLoadBtn.textContent = searchMode === 'playlist' ? 'Pobieranie...' : 'Szukam...';
 
         try {
-            const found = await searchItunes(query, count);
+            let found = [];
 
-            if (found.length === 0) {
-                alert("Nie znaleziono żadnych utworów z podglądem dla tego zapytania. Spróbuj innego artysty lub gatunku.");
-                return;
+            if (searchMode === 'playlist') {
+                found = await fetchPlaylistTracks(selectedPlaylist, count);
+            } else {
+                found = await fetchArtistTracks(itunesArtistQuery.value.trim(), count);
             }
 
-            if (found.length < count) {
-                console.warn(`iTunes: znaleziono tylko ${found.length} z ${count} żądanych utworów`);
+            if (found.length === 0) {
+                alert("Nie znaleziono utworów. Spróbuj czegoś innego.");
+                return;
             }
 
             tracks = found;
@@ -121,7 +232,6 @@ const ItunesMode = (() => {
             loadNextTrack();
 
         } catch (e) {
-            console.error(e);
             alert("Błąd podczas wyszukiwania.");
         } finally {
             itunesLoadBtn.disabled = false;
@@ -129,7 +239,6 @@ const ItunesMode = (() => {
         }
     }
 
-    // ── Audio ─────────────────────────────────────────────
     function stopAudio() {
         clearTimeout(pauseTimer);
         if (audioEl) {
@@ -145,16 +254,15 @@ const ItunesMode = (() => {
         if (!track?.previewUrl) return;
         audioEl = new Audio(track.previewUrl);
         audioEl.volume = volumeSlider.value / 100;
-        audioEl.play().catch(e => console.error('Audio error:', e));
+        audioEl.play().catch(() => {});
         pauseTimer = setTimeout(() => {
             if (audioEl) audioEl.pause();
         }, playDurations[currentRound] * 1000 + 300);
     }
 
-    // ── Gra ───────────────────────────────────────────────
     function loadNextTrack() {
         currentRound = 0;
-        isArtistGuessed = false;
+        isArtistGuessed = (searchMode === 'artist');
         isTitleGuessed = false;
         guessInput.value = '';
         timeDisplay.textContent = playDurations[0];
@@ -229,7 +337,6 @@ const ItunesMode = (() => {
         historyList.innerHTML = '';
     }
 
-    // ── Listenery iTunes (capture + stopImmediatePropagation) ──
     function onPlay(e) {
         if (!active) return;
         e.stopImmediatePropagation();
@@ -239,6 +346,7 @@ const ItunesMode = (() => {
     function onNextRound(e) {
         if (!active) return;
         e.stopImmediatePropagation();
+        stopAudio();
         if (currentRound < playDurations.length - 1) {
             currentRound++;
             timeDisplay.textContent = playDurations[currentRound];
@@ -246,7 +354,7 @@ const ItunesMode = (() => {
         } else {
             const track = tracks[currentIndex];
             isArtistGuessed = true; isTitleGuessed = true;
-            updateSecretDisplay(); stopAudio();
+            updateSecretDisplay();
             setTimeout(() => { nextSong(true); alert("Koniec prób! Następny utwór."); }, 300);
         }
     }
@@ -263,6 +371,7 @@ const ItunesMode = (() => {
         if (isArtistGuessed && isTitleGuessed) {
             playSuccessSound(); triggerEdgeGlow(); stopAudio();
             addToHistory(track.artist, track.name, true, playDurations[currentRound]);
+            Auth.addScore(currentRound);
             setTimeout(() => nextSong(), 2000);
         }
     }
@@ -275,29 +384,21 @@ const ItunesMode = (() => {
         if (active) updateSecretDisplay();
     }
 
-    // ── Aktywuj / Deaktywuj ───────────────────────────────
     function activate() {
         active = true;
         showBadge();
 
-        // Ukryj wszystko inne
         landingUI.style.display = 'none';
         loginBtn.style.display = 'none';
         setupUI.style.display = 'none';
         gameUI.style.display = 'none';
-
-        // Pokaż iTunes setup
         itunesSetupUI.style.display = 'flex';
 
-        // Listenery gry
         playBtn.addEventListener('click', onPlay, true);
         nextRoundBtn.addEventListener('click', onNextRound, true);
         submitGuessBtn.addEventListener('click', onSubmit, true);
         volumeSlider.addEventListener('input', onVolume);
         hideLengthToggle.addEventListener('change', onToggleLength);
-
-        // "Zmień playlistę" z menu – wróć do iTunes setup
-        document.getElementById('menuGoSetupItunes')?.addEventListener('click', goToSetup);
     }
 
     function deactivate() {
@@ -314,31 +415,21 @@ const ItunesMode = (() => {
         hideLengthToggle.removeEventListener('change', onToggleLength);
     }
 
-    // ── Public API ────────────────────────────────────────
     function init() {
-        // Przycisk "Szukaj i graj"
-        itunesLoadBtn.addEventListener('click', () => {
-            if (!active) return;
-            loadAndStart();
-        });
+        buildPlaylistChips();
+        setupTabs();
 
-        // Enter w polu query
-        itunesQuery.addEventListener('keydown', (e) => {
-            if (!active) return;
-            if (e.key === 'Enter') loadAndStart();
-        });
+        itunesLoadBtn.addEventListener('click', () => { if (active) loadAndStart(); });
+        itunesArtistQuery.addEventListener('keydown', e => { if (active && e.key === 'Enter') loadAndStart(); });
 
-        // Landing – przycisk iTunes
         document.getElementById('landingItunesBtn').addEventListener('click', () => {
             landingUI.style.display = 'none';
             activate();
         });
 
-        // Dropdown – Tryb iTunes
         document.getElementById('menuTrybItunes').addEventListener('click', () => {
             document.getElementById('menuDropdown').classList.add('hidden');
             if (!active) {
-                // Jeśli OG jest w trakcie gry, reload
                 if (gameUI.style.display !== 'none') { location.reload(); return; }
                 landingUI.style.display = 'none';
                 setupUI.style.display = 'none';
@@ -347,16 +438,12 @@ const ItunesMode = (() => {
             }
         });
 
-        // Dropdown – wróć do setup iTunes gdy aktywny
         document.getElementById('menuTrybOG').addEventListener('click', () => {
             document.getElementById('menuDropdown').classList.add('hidden');
-            if (active) {
-                deactivate();
-                location.reload();
-            }
+            if (active) { deactivate(); location.reload(); }
         });
     }
 
-    return { init, activate, deactivate, isActive: () => active, goToSetup };
+    return { init, activate, deactivate, isActive: () => active, goToSetup, stopAudio };
 
 })();

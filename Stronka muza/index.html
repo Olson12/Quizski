@@ -8,20 +8,50 @@
 </head>
 <body>
 
-    <!-- Menu -->
+    <!-- ─── AUTH MODAL ─── -->
+    <div id="authModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <button class="modal-close" id="authModalClose">✕</button>
+            <h2 id="authModalTitle">Zaloguj się</h2>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tabLogin">Logowanie</button>
+                <button class="auth-tab" id="tabRegister">Rejestracja</button>
+            </div>
+
+            <input type="text"     id="authNick"     placeholder="Nick..."  autocomplete="username">
+            <input type="password" id="authPassword" placeholder="Hasło..." autocomplete="current-password">
+            <div id="authError" class="modal-error"></div>
+            <button id="authSubmitBtn" class="full-width-btn">Zaloguj</button>
+        </div>
+    </div>
+
+    <!-- ─── SCOREBOARD MODAL ─── -->
+    <div id="scoreboardModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <button class="modal-close" id="scoreboardClose">✕</button>
+            <h2>Scoreboard</h2>
+            <div id="userBadge" class="user-badge"></div>
+            <div id="scoreboardList" class="scoreboard-list">
+                <div class="sb-loading">Ładowanie...</div>
+            </div>
+            <button id="logoutFromScore" class="btn-muted">Wyloguj</button>
+        </div>
+    </div>
+
+    <!-- ─── MAIN APP ─── -->
     <div id="menuWrap">
         <button id="menuBtn" class="menu-trigger">Q</button>
         <div id="menuDropdown" class="dropdown hidden">
             <button id="menuTrybOG">♫ Tryb OG</button>
             <button id="menuTrybItunes">⟳ Tryb iTunes (beta)</button>
+            <button id="menuAuthBtn">👤 Zaloguj / Zarejestruj</button>
             <button id="menuLogout">⏏ Wyloguj Spotify</button>
         </div>
     </div>
 
-    <!-- Historia -->
     <div id="historyList"></div>
 
-    <!-- ─── MAIN ─────────────────────────────────────── -->
     <div id="app-wrapper">
 
         <h1>Quizski</h1>
@@ -32,7 +62,7 @@
             <span></span><span></span><span></span>
         </div>
 
-        <!-- ── EKRAN WYBORU TRYBU ── -->
+        <!-- LANDING -->
         <div id="landingUI" class="card">
             <h2>Wybierz tryb</h2>
             <div class="controls-row">
@@ -41,10 +71,10 @@
             </div>
         </div>
 
-        <!-- ── TRYB OG ── -->
+        <!-- TRYB OG -->
         <button id="loginBtn" style="display:none;">Zaloguj do Spotify</button>
 
-        <div id="setupUI" class="card" style="display: none;">
+        <div id="setupUI" class="card" style="display:none;">
             <h2>Tryb OG</h2>
             <div class="input-row">
                 <input type="text" id="playlistInput" placeholder="Wklej link do playlisty Spotify...">
@@ -52,22 +82,35 @@
             </div>
         </div>
 
-        <!-- ── TRYB ITUNES SETUP ── -->
-        <div id="itunesSetupUI" class="card" style="display: none;">
+        <!-- TRYB ITUNES SETUP -->
+        <div id="itunesSetupUI" class="card" style="display:none;">
             <h2>Tryb iTunes Beta</h2>
-            <div class="input-row">
-                <input type="text" id="itunesQuery" placeholder="Artysta lub gatunek (np. Taylor Swift, pop)...">
+
+            <div class="itunes-mode-toggle">
+                <button class="itunes-tab active" id="tabArtist" data-mode="artist">Artysta</button>
+                <button class="itunes-tab" id="tabGenre" data-mode="genre">Gatunek</button>
             </div>
-            <div class="input-row itunes-count-row">
-                <label for="itunesCount">Liczba utworów:</label>
+
+            <div id="artistPanel">
+                <div class="input-row">
+                    <input type="text" id="itunesArtistQuery" placeholder="Wpisz nazwę artysty...">
+                </div>
+            </div>
+
+            <div id="genrePanel" style="display:none;">
+                <div class="genre-chips" id="genreChips"></div>
+            </div>
+
+            <div class="itunes-count-row">
+                <span class="count-label">Liczba utworów:</span>
                 <input type="number" id="itunesCount" min="1" max="50" value="10">
                 <button id="itunesLoadBtn">Szukaj i graj</button>
             </div>
         </div>
 
-        <!-- ── GAME UI (wspólny) ── -->
-        <div id="gameUI" class="card" style="display: none;">
-            <h2 id="secretDisplay">*** - ***</h2>
+        <!-- GAME UI (wspólny) -->
+        <div id="gameUI" class="card" style="display:none;">
+            <div id="secretDisplay">*** - ***</div>
 
             <div class="mode-toggle">
                 <span>Pokaż długość</span>
@@ -99,25 +142,26 @@
                     <div class="time-progress-fill" id="timeProgressFill"></div>
                 </div>
                 <div class="time-labels">
-                    <span style="left: 10%">1s</span>
-                    <span style="left: 20%">2s</span>
-                    <span style="left: 30%">3s</span>
-                    <span style="left: 50%">5s</span>
-                    <span style="left: 100%">10s</span>
+                    <span style="left:10%">1s</span>
+                    <span style="left:20%">2s</span>
+                    <span style="left:30%">3s</span>
+                    <span style="left:50%">5s</span>
+                    <span style="left:100%">10s</span>
                 </div>
             </div>
 
             <div class="stats-row">
                 <span>Czas: <span class="stat-value" id="timeDisplay">1</span>s</span>
                 <span>Piosenka: <span class="stat-value" id="trackCounterDisplay">0/0</span></span>
+                <span id="sessionPtsDisplay" class="session-pts hidden">+<span id="sessionPtsVal">0</span>pkt</span>
             </div>
         </div>
 
     </div>
 
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="auth.js"></script>
     <script src="itunes.js"></script>
     <script src="app.js"></script>
-
 </body>
 </html>

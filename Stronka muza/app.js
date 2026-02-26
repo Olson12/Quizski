@@ -52,9 +52,7 @@ async function fetchSpotifyToken() {
         const res = await fetch('/.netlify/functions/spotify-token');
         const data = await res.json();
         spotifyToken = data.access_token;
-    } catch (e) {
-        console.error('Błąd pobierania tokenu:', e);
-    }
+    } catch (e) { console.error('Błąd pobierania tokenu:', e); }
 }
 
 // ─── MENU ────────────────────────────────────────────────
@@ -63,15 +61,11 @@ menuBtn.addEventListener('click', (e) => {
     menuDropdown.classList.toggle('hidden');
 });
 
-document.addEventListener('click', () => {
-    menuDropdown.classList.add('hidden');
-});
+document.addEventListener('click', () => menuDropdown.classList.add('hidden'));
 
-// "Tryb OG" w dropdown – wróć do setup jeśli w grze
 document.getElementById('menuTrybOG').addEventListener('click', () => {
     menuDropdown.classList.add('hidden');
     if (ItunesMode.isActive()) { ItunesMode.deactivate(); location.reload(); return; }
-    // Jeśli jesteśmy w grze – wróć do setupu
     gameUI.style.display = 'none';
     landingUI.style.display = 'none';
     loginBtn.style.display = userToken ? 'none' : 'block';
@@ -81,19 +75,13 @@ document.getElementById('menuTrybOG').addEventListener('click', () => {
     historyList.innerHTML = '';
 });
 
-menuLogout.addEventListener('click', () => {
-    localStorage.clear();
-    location.reload();
-});
+menuLogout.addEventListener('click', () => { localStorage.clear(); location.reload(); });
 
 // ─── LANDING ─────────────────────────────────────────────
 document.getElementById('landingOGBtn').addEventListener('click', () => {
     landingUI.style.display = 'none';
-    if (userToken) {
-        setupUI.style.display = 'block';
-    } else {
-        loginBtn.style.display = 'block';
-    }
+    if (userToken) { setupUI.style.display = 'block'; }
+    else { loginBtn.style.display = 'block'; }
 });
 
 // ─── HISTORIA ───────────────────────────────────────────
@@ -143,39 +131,33 @@ const sha256 = async (plain) => {
     return window.crypto.subtle.digest('SHA-256', data);
 };
 
-const base64encode = (input) => {
-    return btoa(String.fromCharCode(...new Uint8Array(input)))
+const base64encode = (input) =>
+    btoa(String.fromCharCode(...new Uint8Array(input)))
         .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-};
 
 const authenticate = async () => {
     const codeVerifier = generateRandomString(64);
-    window.localStorage.setItem('code_verifier', codeVerifier);
+    localStorage.setItem('code_verifier', codeVerifier);
     const hashed = await sha256(codeVerifier);
     const codeChallenge = base64encode(hashed);
     const clientId = (await fetch('/.netlify/functions/spotify-token?clientId=true').then(r => r.json())).client_id;
     const authUrl = new URL("https://accounts.spotify.com/authorize");
-    const params = {
+    authUrl.search = new URLSearchParams({
         response_type: 'code', client_id: clientId, scope: scopes,
         code_challenge_method: 'S256', code_challenge: codeChallenge,
         redirect_uri: redirectUri, show_dialog: 'true'
-    };
-    authUrl.search = new URLSearchParams(params).toString();
+    }).toString();
     window.location.href = authUrl.toString();
 };
 
 const getToken = async (code) => {
     const codeVerifier = localStorage.getItem('code_verifier');
     const clientId = (await fetch('/.netlify/functions/spotify-token?clientId=true').then(r => r.json())).client_id;
-    const payload = {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            client_id: clientId, grant_type: 'authorization_code',
-            code: code, redirect_uri: redirectUri, code_verifier: codeVerifier,
-        }),
-    };
-    const response = await fetch("https://accounts.spotify.com/api/token", payload);
+        body: new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: codeVerifier }),
+    });
     const data = await response.json();
     if (data.access_token) {
         localStorage.setItem('access_token', data.access_token);
@@ -193,32 +175,26 @@ const getToken = async (code) => {
 function initSpotifyPlayer() {
     if (!userToken) return;
     if (player) player.disconnect();
-
     player = new Spotify.Player({
         name: 'Music Quiz Player',
         getOAuthToken: cb => { cb(userToken); },
         volume: volumeSlider.value / 100
     });
-
     player.addListener('ready', ({ device_id }) => {
         deviceId = device_id;
         playBtn.disabled = false;
         nextRoundBtn.disabled = false;
     });
-
     player.addListener('player_state_changed', state => {
         if (state && !state.paused && expectedPlaying) {
             expectedPlaying = false;
-            pauseTimeout = setTimeout(() => player.pause(), (playDurations[currentRound] * 1000) + 500);
+            pauseTimeout = setTimeout(() => player.pause(), playDurations[currentRound] * 1000 + 500);
         }
     });
-
     player.connect();
 }
 
-window.onSpotifyWebPlaybackSDKReady = () => {
-    if (userToken) initSpotifyPlayer();
-};
+window.onSpotifyWebPlaybackSDKReady = () => { if (userToken) initSpotifyPlayer(); };
 
 volumeSlider.addEventListener('input', () => {
     if (ItunesMode.isActive()) return;
@@ -227,36 +203,29 @@ volumeSlider.addEventListener('input', () => {
 
 // ─── INIT ────────────────────────────────────────────────
 async function init() {
-    // Inicjuj iTunes mode
+    Auth.init();
     ItunesMode.init();
-
     const code = urlParams.get('code');
     if (code) {
-        // Wracamy z OAuth – pomiń landing
         await fetchSpotifyToken();
         await getToken(code);
         return;
     }
-
     if (userToken) {
-        // Zalogowany – pokaż landing (user wybierze tryb)
         await fetchSpotifyToken();
         initSpotifyPlayer();
-        landingUI.style.display = 'flex';
-    } else {
-        // Niezalogowany – pokaż landing
-        landingUI.style.display = 'flex';
     }
+    landingUI.style.display = 'flex';
 }
 
 init();
 
 loginBtn.addEventListener('click', authenticate);
+hideLengthToggle.addEventListener('change', () => { if (!ItunesMode.isActive()) updateSecretDisplay(); });
 
-hideLengthToggle.addEventListener('change', () => {
-    if (ItunesMode.isActive()) return;
-    updateSecretDisplay();
-});
+// ─── ENTER ────────────────────────────────────────────────
+playlistInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadPlaylistBtn.click(); });
+guessInput.addEventListener('keydown',   e => { if (e.key === 'Enter') submitGuessBtn.click(); });
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -268,7 +237,6 @@ function shuffleArray(array) {
 // ─── LOAD PLAYLIST ───────────────────────────────────────
 loadPlaylistBtn.addEventListener('click', async () => {
     if (ItunesMode.isActive()) return;
-
     if (!spotifyToken) await fetchSpotifyToken();
     if (!spotifyToken) { alert("Błąd połączenia z Spotify. Odśwież stronę."); return; }
 
@@ -276,9 +244,8 @@ loadPlaylistBtn.addEventListener('click', async () => {
     loadPlaylistBtn.textContent = 'Ładowanie...';
 
     const url = playlistInput.value;
-    let id = null;
-    let isAlbum = false;
-    if (url.includes('playlist/')) { id = url.split('playlist/')[1].split('?')[0]; }
+    let id = null, isAlbum = false;
+    if (url.includes('playlist/')) id = url.split('playlist/')[1].split('?')[0];
     else if (url.includes('album/')) { id = url.split('album/')[1].split('?')[0]; isAlbum = true; }
 
     if (!id) {
@@ -295,25 +262,18 @@ loadPlaylistBtn.addEventListener('click', async () => {
     try {
         const response = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${spotifyToken}` } });
         if (!response.ok) {
-            if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After') || '30';
-                alert(`Spotify rate limit – poczekaj ${retryAfter} sekund i spróbuj ponownie.`);
-            } else if (response.status === 401) {
-                await fetchSpotifyToken();
-                alert("Token odświeżony, spróbuj ponownie.");
-            } else {
-                alert(`Błąd ${response.status}. Spróbuj ponownie.`);
-            }
+            if (response.status === 429) alert(`Spotify rate limit – poczekaj ${response.headers.get('Retry-After') || '30'}s.`);
+            else if (response.status === 401) { await fetchSpotifyToken(); alert("Token odświeżony, spróbuj ponownie."); }
+            else alert(`Błąd ${response.status}.`);
             return;
         }
-
         const data = await response.json();
         const items = data.items || [];
         playlistTracks = isAlbum
             ? items.filter(t => t && t.uri)
             : items.map(i => i.item).filter(t => t && t.uri && t.name);
 
-        if (playlistTracks.length === 0) { alert("Nie znaleziono utworów na tej liście."); return; }
+        if (playlistTracks.length === 0) { alert("Nie znaleziono utworów."); return; }
 
         isAlbumMode = isAlbum;
         shuffleArray(playlistTracks);
@@ -323,7 +283,7 @@ loadPlaylistBtn.addEventListener('click', async () => {
         loadNextSongData();
     } catch (e) {
         console.error(e);
-        alert("Wystąpił błąd podczas ładowania playlisty.");
+        alert("Błąd podczas ładowania playlisty.");
     } finally {
         loadPlaylistBtn.disabled = false;
         loadPlaylistBtn.textContent = 'Wczytaj';
@@ -351,10 +311,8 @@ function loadNextSongData() {
 
 function updateSecretDisplay() {
     const hideLength = hideLengthToggle.checked;
-    const mask = (text) => hideLength ? '*****' : text.replace(/[\p{L}\d]/gu, '*');
-    const displayArtist = isArtistGuessed ? currentArtist : mask(currentArtist);
-    const displayTitle  = isTitleGuessed  ? currentTitle  : mask(currentTitle);
-    secretDisplay.textContent = `${displayArtist} - ${displayTitle}`;
+    const mask = t => hideLength ? '*****' : t.replace(/[\p{L}\d]/gu, '*');
+    secretDisplay.textContent = `${isArtistGuessed ? currentArtist : mask(currentArtist)} - ${isTitleGuessed ? currentTitle : mask(currentTitle)}`;
 }
 
 function clean(str) { return str.toLowerCase().replace(/[^\p{L}\d\s]/gu, ""); }
@@ -362,17 +320,15 @@ function clean(str) { return str.toLowerCase().replace(/[^\p{L}\d\s]/gu, ""); }
 submitGuessBtn.addEventListener('click', () => {
     if (ItunesMode.isActive()) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
-
     const inputWords = clean(guessInput.value).split(/\s+/).filter(w => w.length > 0);
     if (!isArtistGuessed && clean(currentArtist).split(/\s+/).some(w => inputWords.includes(w))) isArtistGuessed = true;
     if (!isTitleGuessed && clean(currentTitle).split(/\s+/).some(w => inputWords.includes(w))) isTitleGuessed = true;
     guessInput.value = '';
     updateSecretDisplay();
-
     if (isArtistGuessed && isTitleGuessed) {
-        playSuccessSound();
-        triggerEdgeGlow();
+        playSuccessSound(); triggerEdgeGlow();
         addToHistory(currentArtist, currentTitle, true, playDurations[currentRound]);
+        Auth.addScore(currentRound);
         setTimeout(() => nextSong(), 2000);
     }
 });
@@ -380,18 +336,13 @@ submitGuessBtn.addEventListener('click', () => {
 function nextSong(failed = false) {
     if (failed) addToHistory(currentArtist, currentTitle, false, null);
     currentTrackIndex++;
-    if (currentTrackIndex >= playlistTracks.length) {
-        alert("To była ostatnia piosenka!");
-        location.reload();
-        return;
-    }
+    if (currentTrackIndex >= playlistTracks.length) { alert("To była ostatnia piosenka!"); location.reload(); return; }
     loadNextSongData();
 }
 
 playBtn.addEventListener('click', () => {
     if (ItunesMode.isActive()) return;
-    if (!deviceId) return;
-    if (!userToken) { localStorage.clear(); location.reload(); return; }
+    if (!deviceId || !userToken) { localStorage.clear(); location.reload(); return; }
     clearTimeout(pauseTimeout);
     expectedPlaying = true;
     fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
@@ -403,6 +354,10 @@ playBtn.addEventListener('click', () => {
 
 nextRoundBtn.addEventListener('click', () => {
     if (ItunesMode.isActive()) return;
+    // Natychmiast zatrzymaj Spotify
+    clearTimeout(pauseTimeout);
+    if (player) player.pause();
+
     if (currentRound < playDurations.length - 1) {
         currentRound++;
         timeDisplay.textContent = playDurations[currentRound];
