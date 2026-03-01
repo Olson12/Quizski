@@ -1,4 +1,4 @@
-const redirectUri = 'https://quizski.netlify.app/';
+const redirectUri = 'https://quizski.pl';
 const scopes = 'streaming user-read-email user-read-private user-modify-playback-state';
 
 const loginBtn            = document.getElementById('loginBtn');
@@ -39,7 +39,6 @@ let isArtistGuessed = false;
 let isTitleGuessed = false;
 let spotifyToken = null;
 
-// ─── TOKEN ───────────────────────────────────────────────
 const urlParams = new URLSearchParams(window.location.search);
 const pendingCode = urlParams.get('code');
 const expiry = localStorage.getItem('token_expiry');
@@ -52,10 +51,9 @@ async function fetchSpotifyToken() {
         const res = await fetch('/.netlify/functions/spotify-token');
         const data = await res.json();
         spotifyToken = data.access_token;
-    } catch (e) { console.error('Błąd pobierania tokenu:', e); }
+    } catch (e) { console.error(e); }
 }
 
-// ─── MENU ────────────────────────────────────────────────
 menuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     menuDropdown.classList.toggle('hidden');
@@ -65,7 +63,9 @@ document.addEventListener('click', () => menuDropdown.classList.add('hidden'));
 
 document.getElementById('menuTrybOG').addEventListener('click', () => {
     menuDropdown.classList.add('hidden');
-    if (ItunesMode.isActive()) { ItunesMode.deactivate(); location.reload(); return; }
+    if (ItunesMode.isActive()) {
+        ItunesMode.deactivate();
+    }
     gameUI.style.display = 'none';
     landingUI.style.display = 'none';
     loginBtn.style.display = userToken ? 'none' : 'block';
@@ -75,16 +75,21 @@ document.getElementById('menuTrybOG').addEventListener('click', () => {
     historyList.innerHTML = '';
 });
 
-menuLogout.addEventListener('click', () => { localStorage.clear(); location.reload(); });
+menuLogout.addEventListener('click', () => {
+    if (userToken) {
+        localStorage.clear();
+        location.reload();
+    } else {
+        authenticate();
+    }
+});
 
-// ─── LANDING ─────────────────────────────────────────────
 document.getElementById('landingOGBtn').addEventListener('click', () => {
     landingUI.style.display = 'none';
     if (userToken) { setupUI.style.display = 'block'; }
     else { loginBtn.style.display = 'block'; }
 });
 
-// ─── HISTORIA ───────────────────────────────────────────
 function addToHistory(artist, title, guessed, secondsUsed) {
     const item = document.createElement('div');
     item.classList.add('history-item', guessed ? 'guessed' : 'failed');
@@ -97,7 +102,6 @@ function addToHistory(artist, title, guessed, secondsUsed) {
     historyList.scrollTop = historyList.scrollHeight;
 }
 
-// ─── WEB AUDIO ──────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playSuccessSound() {
@@ -118,7 +122,6 @@ function triggerEdgeGlow() {
     document.body.addEventListener('animationend', () => document.body.classList.remove('correct-flash'), { once: true });
 }
 
-// ─── AUTH ────────────────────────────────────────────────
 const generateRandomString = (l) => {
     const p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const v = crypto.getRandomValues(new Uint8Array(l));
@@ -171,7 +174,6 @@ const getToken = async (code) => {
     }
 };
 
-// ─── SPOTIFY PLAYER ─────────────────────────────────────
 function initSpotifyPlayer() {
     if (!userToken) return;
     if (player) player.disconnect();
@@ -201,7 +203,6 @@ volumeSlider.addEventListener('input', () => {
     if (player) player.setVolume(volumeSlider.value / 100);
 });
 
-// ─── INIT ────────────────────────────────────────────────
 async function init() {
     Auth.init();
     ItunesMode.init();
@@ -220,10 +221,10 @@ async function init() {
 
 init();
 
+fetch('/.netlify/functions/user-auth?action=logVisit', { method: 'POST' }).catch(() => {});
 loginBtn.addEventListener('click', authenticate);
 hideLengthToggle.addEventListener('change', () => { if (!ItunesMode.isActive()) updateSecretDisplay(); });
 
-// ─── ENTER ────────────────────────────────────────────────
 playlistInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadPlaylistBtn.click(); });
 guessInput.addEventListener('keydown',   e => { if (e.key === 'Enter') submitGuessBtn.click(); });
 
@@ -234,7 +235,6 @@ function shuffleArray(array) {
     }
 }
 
-// ─── LOAD PLAYLIST ───────────────────────────────────────
 loadPlaylistBtn.addEventListener('click', async () => {
     if (ItunesMode.isActive()) return;
     if (!spotifyToken) await fetchSpotifyToken();
@@ -244,20 +244,20 @@ loadPlaylistBtn.addEventListener('click', async () => {
     loadPlaylistBtn.textContent = 'Ładowanie...';
 
     const url = playlistInput.value;
-    let id = null, isAlbum = false;
-    if (url.includes('playlist/')) id = url.split('playlist/')[1].split('?')[0];
-    else if (url.includes('album/')) { id = url.split('album/')[1].split('?')[0]; isAlbum = true; }
+    let id = null;
+    
+    if (url.includes('album/')) { 
+        id = url.split('album/')[1].split('?')[0]; 
+    }
 
     if (!id) {
-        alert("Wklej poprawny link.");
+        alert("Wklej poprawny link do albumu.");
         loadPlaylistBtn.disabled = false;
-        loadPlaylistBtn.textContent = 'Wczytaj';
+        loadPlaylistBtn.textContent = 'Zatwierdź album';
         return;
     }
 
-    const endpoint = isAlbum
-        ? `https://api.spotify.com/v1/albums/${id}/tracks`
-        : `https://api.spotify.com/v1/playlists/${id}/items`;
+    const endpoint = `https://api.spotify.com/v1/albums/${id}/tracks`;
 
     try {
         const response = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${spotifyToken}` } });
@@ -269,13 +269,11 @@ loadPlaylistBtn.addEventListener('click', async () => {
         }
         const data = await response.json();
         const items = data.items || [];
-        playlistTracks = isAlbum
-            ? items.filter(t => t && t.uri)
-            : items.map(i => i.item).filter(t => t && t.uri && t.name);
+        playlistTracks = items.filter(t => t && t.uri);
 
         if (playlistTracks.length === 0) { alert("Nie znaleziono utworów."); return; }
 
-        isAlbumMode = isAlbum;
+        isAlbumMode = true;
         shuffleArray(playlistTracks);
         setupUI.style.display = 'none';
         gameUI.style.display = 'flex';
@@ -283,14 +281,13 @@ loadPlaylistBtn.addEventListener('click', async () => {
         loadNextSongData();
     } catch (e) {
         console.error(e);
-        alert("Błąd podczas ładowania playlisty.");
+        alert("Błąd podczas ładowania albumu.");
     } finally {
         loadPlaylistBtn.disabled = false;
-        loadPlaylistBtn.textContent = 'Wczytaj';
+        loadPlaylistBtn.textContent = 'Zatwierdź album';
     }
 });
 
-// ─── GAME ────────────────────────────────────────────────
 function updateTimeProgress() {
     timeProgressFill.style.width = timeProgressPercents[currentRound] + '%';
 }
@@ -342,6 +339,10 @@ function nextSong(failed = false) {
 
 playBtn.addEventListener('click', () => {
     if (ItunesMode.isActive()) return;
+    
+    playBtn.disabled = true;
+    setTimeout(() => { playBtn.disabled = false; }, 200);
+
     if (!deviceId || !userToken) { localStorage.clear(); location.reload(); return; }
     clearTimeout(pauseTimeout);
     expectedPlaying = true;
@@ -354,7 +355,10 @@ playBtn.addEventListener('click', () => {
 
 nextRoundBtn.addEventListener('click', () => {
     if (ItunesMode.isActive()) return;
-    // Natychmiast zatrzymaj Spotify
+
+    nextRoundBtn.disabled = true;
+    setTimeout(() => { nextRoundBtn.disabled = false; }, 200);
+
     clearTimeout(pauseTimeout);
     if (player) player.pause();
 

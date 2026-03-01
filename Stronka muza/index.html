@@ -7,26 +7,20 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <!-- ─── AUTH MODAL ─── -->
     <div id="authModal" class="modal-overlay hidden">
         <div class="modal-box">
             <button class="modal-close" id="authModalClose">✕</button>
             <h2 id="authModalTitle">Zaloguj się</h2>
-
             <div class="auth-tabs">
                 <button class="auth-tab active" id="tabLogin">Logowanie</button>
                 <button class="auth-tab" id="tabRegister">Rejestracja</button>
             </div>
-
-            <input type="text"     id="authNick"     placeholder="Nick..."  autocomplete="username">
+            <input type="text" id="authNick" placeholder="Nick..." autocomplete="username">
             <input type="password" id="authPassword" placeholder="Hasło..." autocomplete="current-password">
             <div id="authError" class="modal-error"></div>
             <button id="authSubmitBtn" class="full-width-btn">Zaloguj</button>
         </div>
     </div>
-
-    <!-- ─── SCOREBOARD MODAL ─── -->
     <div id="scoreboardModal" class="modal-overlay hidden">
         <div class="modal-box">
             <button class="modal-close" id="scoreboardClose">✕</button>
@@ -38,80 +32,61 @@
             <button id="logoutFromScore" class="btn-muted">Wyloguj</button>
         </div>
     </div>
-
-    <!-- ─── MAIN APP ─── -->
     <div id="menuWrap">
         <button id="menuBtn" class="menu-trigger">Q</button>
         <div id="menuDropdown" class="dropdown hidden">
+            <button id="menuHome">🏠 Strona główna</button>
             <button id="menuTrybOG">♫ Tryb OG</button>
-            <button id="menuTrybItunes">⟳ Tryb iTunes (beta)</button>
+            <button id="menuTrybItunes">⟳ Tryb Skibidi Beta</button>
             <button id="menuAuthBtn">👤 Zaloguj / Zarejestruj</button>
-            <button id="menuLogout">⏏ Wyloguj Spotify</button>
+            <button id="menuLogout">⏏ Zaloguj/Wyloguj Spotify</button>
         </div>
     </div>
-
     <div id="historyList"></div>
-
     <div id="app-wrapper">
-
         <h1>Quizski</h1>
-
         <div class="waveform">
             <span></span><span></span><span></span>
             <span></span><span></span><span></span>
             <span></span><span></span><span></span>
         </div>
-
-        <!-- LANDING -->
         <div id="landingUI" class="card">
             <h2>Wybierz tryb</h2>
             <div class="controls-row">
                 <button id="landingOGBtn">♫ Tryb OG</button>
-                <button id="landingItunesBtn" class="btn-red">⟳ iTunes Beta</button>
+                <button id="landingItunesBtn" class="btn-red">⟳ Tryb Skibidi Beta</button>
             </div>
         </div>
-
-        <!-- TRYB OG -->
         <button id="loginBtn" style="display:none;">Zaloguj do Spotify</button>
-
         <div id="setupUI" class="card" style="display:none;">
             <h2>Tryb OG</h2>
             <div class="input-row">
-                <input type="text" id="playlistInput" placeholder="Wklej link do playlisty Spotify...">
-                <button id="loadPlaylistBtn">Wczytaj</button>
+                <input type="text" id="playlistInput" placeholder="Wklej link do albumu Spotify...">
+                <button id="loadPlaylistBtn">Zatwierdź album</button>
             </div>
         </div>
-
-        <!-- TRYB ITUNES SETUP -->
         <div id="itunesSetupUI" class="card" style="display:none;">
-            <h2>Tryb iTunes Beta</h2>
-
+            <h2>Tryb Skibidi Beta</h2>
             <div class="itunes-mode-toggle">
                 <button class="itunes-tab active" id="tabArtist" data-mode="artist">Artysta</button>
-                <button class="itunes-tab" id="tabGenre" data-mode="genre">Gatunek</button>
+                <button class="itunes-tab" id="tabGenre" data-mode="genre">Playlista</button>
             </div>
-
             <div id="artistPanel">
                 <div class="input-row">
                     <input type="text" id="itunesArtistQuery" placeholder="Wpisz nazwę artysty...">
                 </div>
             </div>
-
             <div id="genrePanel" style="display:none;">
                 <div class="genre-chips" id="genreChips"></div>
             </div>
-
             <div class="itunes-count-row">
                 <span class="count-label">Liczba utworów:</span>
                 <input type="number" id="itunesCount" min="1" max="50" value="10">
                 <button id="itunesLoadBtn">Szukaj i graj</button>
             </div>
         </div>
-
-        <!-- GAME UI (wspólny) -->
         <div id="gameUI" class="card" style="display:none;">
             <div id="secretDisplay">*** - ***</div>
-
             <div class="mode-toggle">
                 <span>Pokaż długość</span>
                 <label class="switch">
@@ -120,23 +95,19 @@
                 </label>
                 <span>Ukryj długość</span>
             </div>
-
             <div class="guess-row">
                 <input type="text" id="guessInput" placeholder="Wpisz artystę i/lub tytuł...">
                 <button id="submitGuessBtn">Zgadnij</button>
             </div>
-
             <div class="volume-row">
                 <span class="volume-icon">▼</span>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50">
                 <span class="volume-icon">▲</span>
             </div>
-
             <div class="controls-row">
                 <button id="playBtn" disabled>▶ Graj fragment</button>
                 <button id="nextRoundBtn" disabled>✕ Nie wiem</button>
             </div>
-
             <div class="time-progress-wrap">
                 <div class="time-progress-bar">
                     <div class="time-progress-fill" id="timeProgressFill"></div>
@@ -149,16 +120,13 @@
                     <span style="left:100%">10s</span>
                 </div>
             </div>
-
             <div class="stats-row">
                 <span>Czas: <span class="stat-value" id="timeDisplay">1</span>s</span>
                 <span>Piosenka: <span class="stat-value" id="trackCounterDisplay">0/0</span></span>
                 <span id="sessionPtsDisplay" class="session-pts hidden">+<span id="sessionPtsVal">0</span>pkt</span>
             </div>
         </div>
-
     </div>
-
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script src="auth.js"></script>
     <script src="itunes.js"></script>
